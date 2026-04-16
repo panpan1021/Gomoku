@@ -1,8 +1,10 @@
+
 int getCount(int board[SIZE][SIZE], int x, int y, int dir, int player):
 参数:
 board是棋盘,
 [x,y]是坐标,
 dir是四个方向,
+补充：规定一下dir方向(0：横向；1：纵向，2：右斜向；3.左斜向)
 player:
 黑棋为1,白起为-1
 功能:
