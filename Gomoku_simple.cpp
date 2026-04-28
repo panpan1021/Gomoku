@@ -329,16 +329,26 @@ int main()
     cin >> n;
     
     int board[SIZE][SIZE] = { 0 };
-    
+    bool isfirst = false;
+    int firstX = -1, firstY = -1;
     // 读取 n 个完整回合（每个回合：对方落子 + 本方落子）
     for (int i = 0; i < n; i++)
     {
         cin >> x >> y;
-        if (x != -1)
-            board[x][y] = -1; // 对方棋子
+        if (x != -1){
+             board[x][y] = -1; // 对方棋子
+        } else if(!isfirst) isfirst = true;
+        else{
+            board[firstX][firstY] = -1;
+        }
         cin >> x >> y;
-        if (x != -1)
-            board[x][y] = 1; // 本方棋子
+        if (x != -1){
+            if(isfirst){
+                firstX = x;
+                firstY = y;
+            }
+             board[x][y] = 1; // 本方棋子
+        }   
     }
     
     // 读取对方最新一步
