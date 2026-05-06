@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <unordered_map>
 using namespace std;
+typedef long long ll;
 
 const int SIZE = 15;
 
@@ -26,6 +27,7 @@ const int SLEEP2_SCORE = 50;
 const int dx[4] = { 1, 0, 1, 1 };
 const int dy[4] = { 0, 1, 1, -1 };
 
+const int MINNUM = -0x3f3f3f3f;
 // 判断坐标是否在棋盘内
 inline bool inBoard(int x, int y) {
     return x >= 0 && x < SIZE && y >= 0 && y < SIZE;
@@ -179,18 +181,23 @@ void orderMoves(int board[SIZE][SIZE], vector<pair<int, int>>& moves, int player
 }
 
 // 置换表条目
+enum mode {
+    EXACT,
+    LOWER_BOUND,
+    UPPER_BOUND
+};
 struct TTEntry {
     int depth;
     int score;
-    int flag; // 0: exact, 1: lower bound, 2: upper bound
+    mode flag; // 0: exact, 1: lower bound, 2: upper bound
 };
 
 // 简单的置换表实现
-unordered_map<long long, TTEntry> transpositionTable;
+unordered_map<ll, TTEntry> transpositionTable;
 
 // 棋盘状态哈希
-long long hashBoard(int board[SIZE][SIZE]) {
-    long long hash = 0;
+ll hashBoard(int board[SIZE][SIZE]) {
+    ll hash = 0;
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
             hash = hash * 3 + (board[i][j] + 1); // -1, 0, 1 -> 0, 1, 2
@@ -208,40 +215,31 @@ int alphaBeta(int board[SIZE][SIZE], int depth, int alpha, int beta, bool isMax,
     if ((clock() - searchStartTime) / (double)CLOCKS_PER_SEC > 0.95) {
         return evaluateBoard(board, player);
     }
-    
     if (depth == 0) {
         return evaluateBoard(board, player);
     }
-    
-    long long hash = hashBoard(board);
+    ll hash = hashBoard(board);
     auto it = transpositionTable.find(hash);
     if (it != transpositionTable.end()) {
         TTEntry& entry = it->second;
         if (entry.depth >= depth) {
-            if (entry.flag == 0) return entry.score;
-            else if (entry.flag == 1 && entry.score >= beta) return entry.score;
-            else if (entry.flag == 2 && entry.score <= alpha) return entry.score;
+            if (entry.flag == EXACT) return entry.score;
+            else if (entry.flag == LOWER_BOUND && entry.score >= beta) return entry.score;
+            else if (entry.flag == UPPER_BOUND && entry.score <= alpha) return entry.score;
         }
     }
-    
     vector<pair<int, int>> moves = generateMoves(board);
     if (moves.empty()) return evaluateBoard(board, player);
-    
     int bestScore;
-    int flag = 2; // 默认上界
-    
+    int flag = UPPER_BOUND; // 默认上界
     if (isMax) {
-        bestScore = INT_MIN;
+        bestScore = MINNUM;
         orderMoves(board, moves, player);
-        
         for (auto& mv : moves) {
             int x = mv.first, y = mv.second;
             board[x][y] = player;
-            
             int eval = alphaBeta(board, depth - 1, alpha, beta, false, player, bestX, bestY, currentDepth + 1);
-            
             board[x][y] = 0;
-            
             if (eval > bestScore) {
                 bestScore = eval;
                 if (currentDepth == 0) {
@@ -249,19 +247,17 @@ int alphaBeta(int board[SIZE][SIZE], int depth, int alpha, int beta, bool isMax,
                     bestY = y;
                 }
             }
-            
             alpha = max(alpha, eval);
-            
             if (beta <= alpha) {
                 historyHeuristic[x][y] += depth * depth; // 历史启发加分
                 break;
             }
         }
-        if (bestScore >= beta) flag = 1; // 下界
-        else if (bestScore <= alpha) flag = 2; // 上界
-        else flag = 0; // 精确值
+        if (bestScore >= beta) flag = LOWER_BOUND; // 下界
+        else if (bestScore <= alpha) flag = UPPER_BOUND; // 上界
+        else flag = EXACT; // 精确值
     } else {
-        bestScore = INT_MAX;
+        bestScore = MINNUM;
         orderMoves(board, moves, -player);
         
         for (auto& mv : moves) {
@@ -283,9 +279,9 @@ int alphaBeta(int board[SIZE][SIZE], int depth, int alpha, int beta, bool isMax,
                 break;
             }
         }
-        if (bestScore >= beta) flag = 1;
-        else if (bestScore <= alpha) flag = 2;
-        else flag = 0;
+        if (bestScore >= beta) flag = LOWER_BOUND;
+        else if (bestScore <= alpha) flag =UPPER_BOUND;
+        else flag = EXACT;
     }
     
     // 存入置换表
